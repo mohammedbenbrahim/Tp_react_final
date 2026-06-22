@@ -1,58 +1,156 @@
-import { useState, useEffect } from 'react';
-// TODO: Exercice 2 - Importer useDebounce
+import { useState, useEffect, useCallback, useMemo } from "react";
+import useDebounce from "./useDebounce";
 
-/**
- * Hook personnalisé pour gérer les posts du blog
- * @param {Object} options - Options de configuration
- * @param {string} options.searchTerm - Terme de recherche
- * @param {string} options.tag - Tag à filtrer
- * @param {number} options.limit - Nombre d'éléments par page
- * @param {boolean} options.infinite - Mode de chargement infini vs pagination
- * @returns {Object} État et fonctions pour gérer les posts
- */
-function usePosts({ searchTerm = '', tag = '', limit = 10, infinite = true } = {}) {
-  // État local pour les posts
+const API = "https://dummyjson.com/posts";
+
+function usePosts({
+  searchTerm = "",
+  tag = "",
+  limit = 10,
+  infinite = true,
+} = {}) {
+  // ======================
+  // STATES
+  // ======================
   const [posts, setPosts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  
-  // TODO: Exercice 1 - Ajouter les états nécessaires pour la pagination
-  
-  // TODO: Exercice 4 - Ajouter l'état pour le post sélectionné
-  
-  // TODO: Exercice 2 - Utiliser useDebounce pour le terme de recherche
-  
-  // TODO: Exercice 3 - Utiliser useCallback pour construire l'URL de l'API
-  const buildApiUrl = (skip = 0) => {
-    // Construire l'URL en fonction des filtres
-    return 'https://dummyjson.com/posts';
-  };
-  
-  // TODO: Exercice 1 - Implémenter la fonction pour charger les posts
+
+  // Pagination
+  const [skip, setSkip] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+
+  // Selected post (Exercice 4)
+  const [selectedPost, setSelectedPost] = useState(null);
+
+  // Debounced search (Exercice 2)
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  // ======================
+  // BUILD API URL
+  // ======================
+  const buildApiUrl = useCallback(
+    (skipValue = 0) => {
+      let url = `${API}?limit=${limit}&skip=${skipValue}`;
+
+      if (debouncedSearch) {
+        url = `${API}/search?q=${debouncedSearch}`;
+        return url;
+      }
+
+      if (tag) {
+        url = `${API}/tag/${tag}?limit=${limit}&skip=${skipValue}`;
+      }
+
+      return url;
+    },
+    [debouncedSearch, tag, limit]
+  );
+
+  // ======================
+  // FETCH POSTS
+  // ======================
   const fetchPosts = async (reset = false) => {
     try {
       setLoading(true);
-      // Appeler l'API et mettre à jour les états
+      setError(null);
+
+      const currentSkip = reset ? 0 : skip;
+      const url = buildApiUrl(currentSkip);
+
+      const res = await fetch(url);
+      const data = await res.json();
+
+      const newPosts = data.posts || [];
+
+      if (reset || !infinite) {
+        setPosts(newPosts);
+      } else {
+        setPosts((prev) => [...prev, ...newPosts]);
+      }
+
+      setSkip(currentSkip + limit);
+
+      setHasMore(newPosts.length === limit);
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
   };
-  
-  // TODO: Exercice 1 - Utiliser useEffect pour charger les posts quand les filtres changent
-  
-  // TODO: Exercice 4 - Implémenter la fonction pour charger plus de posts
-  
-  // TODO: Exercice 3 - Utiliser useMemo pour calculer les tags uniques
-  
-  // TODO: Exercice 4 - Implémenter la fonction pour charger un post par son ID
-  
+
+  // ======================
+  // LOAD MORE (infinite scroll)
+  // ======================
+  const loadMore = () => {
+    if (!loading && hasMore && infinite) {
+      fetchPosts(false);
+    }
+  };
+
+  // ======================
+  // FETCH SINGLE POST
+  // ======================
+  const fetchPostById = async (id) => {
+    try {
+      setLoading(true);
+
+      const res = await fetch(`${API}/${id}`);
+      const data = await res.json();
+
+      setSelectedPost(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ======================
+  // UNIQUE TAGS (useMemo)
+  // ======================
+  const tags = useMemo(() => {
+    const allTags = posts.flatMap((p) => p.tags || []);
+    return [...new Set(allTags)];
+  }, [posts]);
+
+  // ======================
+  // EFFECT: reload when filters change
+  // ======================
+  useEffect(() => {
+    setSkip(0);
+    fetchPosts(true);
+  }, [debouncedSearch, tag]);
+
+  // ======================
+  // INIT LOAD
+  // ======================
+  useEffect(() => {
+    fetchPosts(true);
+  }, []);
+
+  // ======================
+  // RETURN
+  // ======================
   return {
     posts,
     loading,
     error,
-    // Retourner les autres états et fonctions
+
+    // pagination
+    hasMore,
+    loadMore,
+
+    // selection
+    selectedPost,
+    setSelectedPost,
+    fetchPostById,
+
+    // extras
+    tags,
+
+    // manual reload
+    refetch: () => fetchPosts(true),
   };
 }
 

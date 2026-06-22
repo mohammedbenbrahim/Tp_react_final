@@ -1,18 +1,10 @@
-import React from 'react';
-// TODO: Exercice 3 - Importer useTheme
-// TODO: Exercice 4 - Importer useIntersectionObserver
-import LoadingSpinner from './LoadingSpinner';
+import React, { useCallback } from "react";
+import { useTheme } from "../context/ThemeContext";
+import useIntersectionObserver from "../hooks/useIntersectionObserver";
+import LoadingSpinner from "./LoadingSpinner";
 
 /**
- * Composant d'affichage de la liste des posts
- * @param {Object} props - Propriétés du composant
- * @param {Array} props.posts - Liste des posts à afficher
- * @param {boolean} props.loading - Indicateur de chargement
- * @param {boolean} props.hasMore - Indique s'il y a plus de posts à charger
- * @param {Function} props.onLoadMore - Fonction pour charger plus de posts
- * @param {Function} props.onPostClick - Fonction appelée au clic sur un post
- * @param {Function} props.onTagClick - Fonction appelée au clic sur un tag
- * @param {boolean} props.infiniteScroll - Mode de défilement infini activé ou non
+ * Post List Component
  */
 function PostList({
   posts = [],
@@ -21,41 +13,109 @@ function PostList({
   onLoadMore,
   onPostClick,
   onTagClick,
-  infiniteScroll = true
+  infiniteScroll = true,
 }) {
-  // TODO: Exercice 3 - Utiliser le hook useTheme
-  
-  // TODO: Exercice 4 - Utiliser useIntersectionObserver pour le défilement infini
-  
-  // TODO: Exercice 3 - Utiliser useCallback pour les gestionnaires d'événements
-  const handlePostClick = (post) => {
-    if (onPostClick) {
-      onPostClick(post);
+  // ======================
+  // THEME
+  // ======================
+  const { theme } = useTheme();
+
+  // ======================
+  // INFINITE SCROLL OBSERVER
+  // ======================
+  const [observerRef, isVisible] = useIntersectionObserver({
+    enabled: infiniteScroll,
+    threshold: 0.1,
+  });
+
+  // Trigger load more when visible
+  React.useEffect(() => {
+    if (isVisible && hasMore && onLoadMore) {
+      onLoadMore();
     }
-  };
-  
-  const handleTagClick = (e, tag) => {
-    e.stopPropagation(); // Éviter de déclencher le clic sur le post
-    if (onTagClick) {
-      onTagClick(tag);
-    }
-  };
-  
-  // TODO: Exercice 1 - Gérer le cas où il n'y a pas de posts
-  
+  }, [isVisible, hasMore, onLoadMore]);
+
+  // ======================
+  // HANDLERS
+  // ======================
+  const handlePostClick = useCallback(
+    (post) => {
+      if (onPostClick) onPostClick(post);
+    },
+    [onPostClick]
+  );
+
+  const handleTagClick = useCallback(
+    (e, tag) => {
+      e.stopPropagation();
+      if (onTagClick) onTagClick(tag);
+    },
+    [onTagClick]
+  );
+
+  // ======================
+  // EMPTY STATE
+  // ======================
+  if (!loading && posts.length === 0) {
+    return <p className="text-center mt-4">No posts found</p>;
+  }
+
   return (
-    <div className="post-list">
-      {/* TODO: Exercice 1 - Afficher la liste des posts */}
-      
-      {/* Afficher le spinner de chargement */}
+    <div className={`post-list ${theme}`}>
+      {/* POSTS */}
+      {posts.map((post) => (
+        <div
+          key={post.id}
+          className={`card mb-3 ${theme === "dark" ? "bg-dark text-white" : ""}`}
+          onClick={() => handlePostClick(post)}
+          style={{ cursor: "pointer" }}
+        >
+          <div className="card-body">
+            <h5 className="card-title">{post.title}</h5>
+            <p className="card-text">
+              {post.body.length > 120
+                ? post.body.slice(0, 120) + "..."
+                : post.body}
+            </p>
+
+            {/* TAGS */}
+            <div>
+              {post.tags?.map((tag) => (
+                <span
+                  key={tag}
+                  className="badge bg-primary me-1"
+                  style={{ cursor: "pointer" }}
+                  onClick={(e) => handleTagClick(e, tag)}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {/* LOADING */}
       {loading && <LoadingSpinner />}
-      
-      {/* TODO: Exercice 4 - Ajouter la référence pour le défilement infini */}
-      
-      {/* TODO: Exercice 1 - Ajouter le bouton "Charger plus" pour le mode non-infini */}
+
+      {/* INFINITE SCROLL TRIGGER */}
+      {infiniteScroll && hasMore && (
+        <div ref={observerRef} style={{ height: 20 }} />
+      )}
+
+      {/* LOAD MORE BUTTON (fallback mode) */}
+      {!infiniteScroll && hasMore && (
+        <div className="text-center">
+          <button className="btn btn-primary" onClick={onLoadMore}>
+            Load more
+          </button>
+        </div>
+      )}
     </div>
   );
 }
 
-// TODO: Exercice 3 - Utiliser React.memo pour optimiser les rendus
-export default PostList;
+// ======================
+// OPTIMIZATION
+// ======================
+export default React.memo(PostList);

@@ -1,18 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 /**
  * Hook personnalisé pour gérer le stockage local
  * @param {string} key - La clé de stockage local
- * @param {any} initialValue - La valeur initiale si rien n'est trouvé dans localStorage
- * @returns {[any, function]} Valeur stockée et fonction pour la mettre à jour
+ * @param {any} initialValue - Valeur par défaut si rien dans localStorage
+ * @returns {[any, function]} valeur + setter
  */
 function useLocalStorage(key, initialValue) {
-  // TODO: Exercice 2 - Implémenter le hook useLocalStorage
-  // 1. Initialiser l'état avec la valeur du localStorage ou la valeur initiale
-  // 2. Mettre à jour localStorage quand la valeur change
-  // 3. Retourner la valeur et la fonction de mise à jour
-  
-  return [initialValue, () => {}]; // À modifier
+  // ======================
+  // INIT STATE
+  // ======================
+  const [value, setValue] = useState(() => {
+    try {
+      const stored = localStorage.getItem(key);
+      return stored !== null ? JSON.parse(stored) : initialValue;
+    } catch (error) {
+      return initialValue;
+    }
+  });
+
+  // ======================
+  // SYNC WITH LOCALSTORAGE
+  // ======================
+  useEffect(() => {
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error("Error saving to localStorage:", error);
+    }
+  }, [key, value]);
+
+  // ======================
+  // RETURN
+  // ======================
+  return [value, setValue];
 }
 
 export default useLocalStorage;

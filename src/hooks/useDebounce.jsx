@@ -1,18 +1,32 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 /**
- * Hook personnalisé pour débouncer une valeur
- * @param {any} value - La valeur à débouncer
- * @param {number} delay - Le délai en millisecondes
- * @returns {any} La valeur après le délai
+ * Hook pour débouncer une valeur
  */
 function useDebounce(value, delay = 500) {
-  // TODO: Exercice 2 - Implémenter le hook useDebounce
-  // 1. Créer un état pour stocker la valeur debouncée
-  // 2. Utiliser useEffect pour mettre à jour la valeur après le délai
-  // 3. Retourner la valeur debouncée
-  
-  return value; // À modifier
+  // ======================
+  // STATE
+  // ======================
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  // ======================
+  // EFFECT
+  // ======================
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    // cleanup: cancel previous timer
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  // ======================
+  // RETURN
+  // ======================
+  return debouncedValue;
 }
 
 export default useDebounce;
