@@ -1,3 +1,6 @@
+TP React Hooks - Blog Application
+Project Overview
+
 This project is a blog application built with React.
 It demonstrates the use of modern React concepts including Hooks, Custom Hooks, Context API, and performance optimization techniques.
 
